@@ -11,6 +11,7 @@ python-glanceclient<2
 python-keystoneclient>=0.2,<0.3
 python-novaclient>=2.12.0,<3
 python-quantumclient>=2.2.0,<3.0.0
+python-ceilometerclient
 python-swiftclient>1.1,<2
 pytz
 
