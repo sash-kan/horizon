@@ -40,3 +40,4 @@ import network
 import nova
 import quantum
 import swift
+import ceilometer
