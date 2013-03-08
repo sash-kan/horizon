@@ -16,6 +16,7 @@
 # under the License.
 
 import logging
+import re
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -24,6 +25,39 @@ from horizon.templatetags.sizeformat import filesizeformat, float_format
 
 
 LOG = logging.getLogger(__name__)
+
+
+class StringWithPlusOperation(str):
+    """Override "+" operation for string object to make."""
+    def __init__(self, *args, **kwargs):
+        super(StringWithPlusOperation, self).__init__(*args, **kwargs)
+
+    def _split_str(self, string):
+        """
+        Split a string to two parts.
+        The first group is the float number and
+        the second one is a string like unit name.
+        """
+        result = re.search(r'^([-+]?[0-9]*\.?[0-9]+)(.*)$', string)
+        if result:
+            number = float(result.groups()[0])
+            unit = result.groups()[1]
+            return number, unit
+        return None, None
+
+    def __radd__(self, another):
+        num_x, unit_x = self._split_str(self)
+
+        if isinstance(another, (int, float)):
+            num_y = another
+        elif isinstance(another, str):
+            num_y, unit_y = self._split_str(another)
+        elif isinstance(another, self.__class__):
+            num_y, unit_y = self._split_str(another.__str__())
+
+        if num_y is None or num_x is None:
+            return '-'
+        return "%s%s" % (num_x + num_y, unit_x)
 
 
 class DiskUsageFilterAction(tables.FilterAction):
@@ -38,18 +72,31 @@ class DiskUsageFilterAction(tables.FilterAction):
         return filter(comp, tenants)
 
 
+def get_read_bytes(sample):
+    result = filesizeformat(sample.disk_read_bytes, float_format)
+    return StringWithPlusOperation(result)
+
+
+def get_write_bytes(sample):
+    result = filesizeformat(sample.disk_write_bytes, float_format)
+    return StringWithPlusOperation(result)
+
+
 class  DiskUsageTable(tables.DataTable):
     tenant = tables.Column("tenant", verbose_name=_("Tenant"))
     user = tables.Column("user", verbose_name=_("User"))
     instance = tables.Column("resource", verbose_name=_("Resource"))
-    disk_read_bytes = tables.Column("disk_read_bytes",
+    disk_read_bytes = tables.Column(get_read_bytes,
                             verbose_name=_("Disk Read Bytes"), summation="sum")
     disk_read_requests = tables.Column("disk_read_requests",
-                            verbose_name=_("Disk Read Requests"), summation="sum")
-    disk_write_bytes = tables.Column("disk_write_bytes",
-                            verbose_name=_("Disk Write Bytes"), summation="sum")
+                            verbose_name=_("Disk Read Requests"),
+                            summation="sum")
+    disk_write_bytes = tables.Column(get_write_bytes,
+                            verbose_name=_("Disk Write Bytes"),
+                            summation="sum")
     disk_write_requests = tables.Column("disk_write_requests",
-                            verbose_name=_("Disk Write Requests"), summation="sum")
+                            verbose_name=_("Disk Write Requests"),
+                            summation="sum")
 
     def get_object_id(self, datum):
         return datum.tenant + datum.user + datum.resource
@@ -59,7 +106,6 @@ class  DiskUsageTable(tables.DataTable):
         verbose_name = _("Global Disk Usage")
         table_actions = (DiskUsageFilterAction,)
         multi_select = False
-        template = "admin/ceilometer/table_with_date_selectors.html"
 
 
 class NetworkUsageFilterAction(tables.FilterAction):
@@ -74,18 +120,32 @@ class NetworkUsageFilterAction(tables.FilterAction):
         return filter(comp, tenants)
 
 
+def get_incoming_bytes(sample):
+    result = filesizeformat(sample.network_incoming_bytes, float_format)
+    return StringWithPlusOperation(result)
+
+
+def get_outgoing_bytes(sample):
+    result = filesizeformat(sample.network_outgoing_bytes, float_format)
+    return StringWithPlusOperation(result)
+
+
 class  NetworkUsageTable(tables.DataTable):
     tenant = tables.Column("tenant", verbose_name=_("Tenant"))
     user = tables.Column("user", verbose_name=_("User"))
     instance = tables.Column("resource", verbose_name=_("Resource"))
-    network_incoming_bytes = tables.Column("network_incoming_bytes",
-                            verbose_name=_("Network incoming Bytes"))
+    network_incoming_bytes = tables.Column(get_incoming_bytes,
+                            verbose_name=_("Network incoming Bytes"),
+                            summation="sum")
     network_incoming_packets = tables.Column("network_incoming_packets",
-                            verbose_name=_("Network incoming Packets"))
-    network_outgoing_bytes = tables.Column("network_outgoing_bytes",
-                            verbose_name=_("Network Outgoing Bytes"))
+                            verbose_name=_("Network incoming Packets"),
+                            summation="sum")
+    network_outgoing_bytes = tables.Column(get_outgoing_bytes,
+                            verbose_name=_("Network Outgoing Bytes"),
+                            summation="sum")
     network_outgoing_packets = tables.Column("network_outgoing_packets",
-                            verbose_name=_("Network Outgoing Packets"))
+                            verbose_name=_("Network Outgoing Packets"),
+                            summation="sum")
 
     def get_object_id(self, datum):
         return datum.tenant + datum.user + datum.resource

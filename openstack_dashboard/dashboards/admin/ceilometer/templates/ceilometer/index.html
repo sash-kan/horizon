@@ -7,9 +7,18 @@
 {% endblock page_header %}
 
 {% block main %}
+<link rel='stylesheet' type='text/css' href='{{ STATIC_URL }}ceilometer/css/jquery-ui.min.css'>
 <div class="row-fluid">
   <div class="span12">
     {{ tab_group.render }}
   </div>
 </div>
+<script type='text/javascript'>
+    document.addEventListener('DOMContentLoaded', function() {
+    $('<script/>', {type: 'text/javascript',
+           src: '{{ STATIC_URL }}ceilometer/js/jquery.ui.datepicker.js'})
+                                                           .appendTo($('head'));
+	$(".datepicker").datepicker();
+    });
+  </script>
 {% endblock %}

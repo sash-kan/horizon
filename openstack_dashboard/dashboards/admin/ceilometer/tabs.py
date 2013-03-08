@@ -27,7 +27,7 @@ class DiskUsageTab(tabs.TableTab):
     table_classes = (DiskUsageTable,)
     name = _("Global Disk Usage")
     slug = "global_disk_usage"
-    template_name = ("horizon/common/_detail_table.html")
+    template_name = ("admin/ceilometer/table_with_date_selectors.html")
 
     def get_global_disk_usage_data(self):
         request = self.tab_group.request
@@ -39,7 +39,7 @@ class NetworkUsageTab(tabs.TableTab):
     table_classes = (NetworkUsageTable,)
     name = _("Global Network Usage")
     slug = "global_network_usage"
-    template_name = ("horizon/common/_detail_table.html")
+    template_name = ("admin/ceilometer/table_with_date_selectors.html")
 
     def get_global_network_usage_data(self):
         request = self.tab_group.request
