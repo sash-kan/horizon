@@ -106,6 +106,7 @@ class  DiskUsageTable(tables.DataTable):
         verbose_name = _("Global Disk Usage")
         table_actions = (DiskUsageFilterAction,)
         multi_select = False
+        template = "admin/ceilometer/table_with_date_selectors.html"
 
 
 class NetworkUsageFilterAction(tables.FilterAction):
