@@ -15,8 +15,6 @@
       <tr class='table_caption'>
 	<th class='table_header' colspan='{{ columns|length }}'>
 
-	  <h4><label for="date_from">{% trans "From" %}:&nbsp;</label><input type="text" id="date_from" name="date_from" class="datepicker" />
-	  <label for="date_to">{% trans "To" %}:&nbsp;</label><input type="text" id="date_to" name="date_to" class="datepicker" /></h4>
           {{ table.render_table_actions }}
 
 	</th>
@@ -82,5 +80,9 @@
 {% endblock table %}
   {% endwith %}
   {% if needs_form_wrapper %}</form>{% endif %}
+</div>
+<div class="table_wrapper">
+	<h4><label for="date_from" style="display:inline">{% trans "From" %}:&nbsp;</label><input type="text" id="date_from" name="date_from" class="datepicker" />
+        <label for="date_to" style="display:inline">{% trans "To" %}:&nbsp;</label><input type="text" id="date_to" name="date_to" class="datepicker" /></h4>
 </div>
 {% endwith %}
