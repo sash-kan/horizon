@@ -85,4 +85,16 @@
 	<h4><label for="date_from" style="display:inline">{% trans "From" %}:&nbsp;</label><input type="text" id="date_from" name="date_from" class="datepicker" />
         <label for="date_to" style="display:inline">{% trans "To" %}:&nbsp;</label><input type="text" id="date_to" name="date_to" class="datepicker" /></h4>
 </div>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+	$(document).ready(function() {
+                $.ajax({
+                        type: "GET",
+                        url: "{% url openstack_dashboard:dashboards:admin:ceilometer:views:index %}",
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json"
+                });
+	});
+});
+</script>
 {% endwith %}
