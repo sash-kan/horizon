@@ -7,18 +7,62 @@
 {% endblock page_header %}
 
 {% block main %}
-<link rel='stylesheet' type='text/css' href='{{ STATIC_URL }}ceilometer/css/jquery-ui.min.css'>
+<link rel='stylesheet' type='text/css' href='{{ STATIC_URL }}ceilometer/css/datepicker.css'>
 <div class="row-fluid">
   <div class="span12">
     {{ tab_group.render }}
   </div>
 </div>
 <script type='text/javascript'>
+    function loadChartData(source)
+    {
+        horizon.ajax.queue({
+                url: "{% url horizon:admin:ceilometer:index %}",
+		data: {"source":source},
+                success: function(data, textStatus, jqXHR) {
+                        alert("ok");
+                }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
+	// iterate over panels and load data from charts
+	$("#ceilometer_overview li a").each(function()
+	{
+		var target = $(this).attr("data-target");
+	        loadChartData(target);
+	});
+
     $('<script/>', {type: 'text/javascript',
-           src: '{{ STATIC_URL }}ceilometer/js/jquery.ui.datepicker.js'})
+           src: '{{ STATIC_URL }}ceilometer/js/bootstrap-datepicker.js'})
                                                            .appendTo($('head'));
-	$(".datepicker").datepicker();
+
+	var from = $('#date_from').datepicker()
+        .on('changeDate', function(ev) {
+        	if (ev.date.valueOf() > to.date.valueOf()) {
+            		var newDate = new Date(ev.date)
+            		newDate.setDate(newDate.getDate() + 1);
+            		to.setValue(newDate);
+          	}
+          	from.hide();
+          	$('#date_to')[0].focus();
+        }).data('datepicker');
+
+        var to = $('#date_to').datepicker({
+        	onRender: function(date) {
+            		return date.valueOf() <= from.date.valueOf() ? 'disabled' : '';
+          	}
+        }).on('changeDate', function(ev) {
+          to.hide();
+        }).data('datepicker');
+
+        $(".action_display_chart").click(function()
+        {
+		var active_panel = $("#ceilometer_overview li.active a");
+		var target = active_panel.attr("data-target");
+                loadChartData(target);
+        });
+
     });
-  </script>
+</script>
 {% endblock %}
