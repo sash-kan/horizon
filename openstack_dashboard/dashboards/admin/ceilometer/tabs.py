@@ -19,6 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 from horizon import tabs
 
 from openstack_dashboard import api
+from openstack_dashboard.api import ceilometer
 
 from .tables import DiskUsageTable, NetworkUsageTable
 
@@ -27,7 +28,7 @@ class DiskUsageTab(tabs.TableTab):
     table_classes = (DiskUsageTable,)
     name = _("Global Disk Usage")
     slug = "global_disk_usage"
-    template_name = ("admin/ceilometer/table_with_date_selectors.html")
+    template_name = ("horizon/common/_detail_table.html")
 
     def get_global_disk_usage_data(self):
         request = self.tab_group.request
@@ -39,15 +40,33 @@ class NetworkUsageTab(tabs.TableTab):
     table_classes = (NetworkUsageTable,)
     name = _("Global Network Usage")
     slug = "global_network_usage"
-    template_name = ("admin/ceilometer/table_with_date_selectors.html")
+    template_name = ("horizon/common/_detail_table.html")
 
     def get_global_network_usage_data(self):
         request = self.tab_group.request
         result = api.ceilometer.global_network_usage(request)
         return result
 
+class StatsTab(tabs.Tab):
+    name = _("Stats")
+    slug = "stats"
+    template_name = ("admin/ceilometer/stats.html")
+
+    def get_context_data(self, request):
+        context = {}
+        meter_list = ceilometer.meter_list(self.request)
+
+        meters = []
+        # we will allow charts of cumulative type
+        for meter in meter_list:
+            if meter.type == "cumulative":
+                if meter.name not in meters:
+                    meters.append(meter.name)
+ 
+        context = {'meters': meters}
+        return context
 
 class CeilometerOverviewTabs(tabs.TabGroup):
     slug = "ceilometer_overview"
-    tabs = (DiskUsageTab, NetworkUsageTab,)
+    tabs = (DiskUsageTab, NetworkUsageTab,StatsTab,)
     sticky = True

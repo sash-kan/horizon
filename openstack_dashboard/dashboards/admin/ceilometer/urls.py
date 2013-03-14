@@ -16,8 +16,10 @@
 
 from django.conf.urls.defaults import patterns, url
 
-from .views import IndexView
+from .views import IndexView, SamplesView
 
 
 urlpatterns = patterns('openstack_dashboard.dashboards.admin.ceilometer.views',
-    url(r'^$', IndexView.as_view(), name='index'))
+    url(r'^$', IndexView.as_view(), name='index'),
+    url(r'^samples$', SamplesView.as_view(), name='samples'))
+

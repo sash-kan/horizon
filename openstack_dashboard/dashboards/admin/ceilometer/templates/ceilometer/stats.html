@@ -1,0 +1,225 @@
+{% load i18n %}
+<style>
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+</style>
+
+<script>
+
+
+</script>
+
+<div class="table_wrapper">
+        <div class="table_actions clearfix" style="min-width:100%">
+        <label for="metric" style="display:inline">{% trans "Metric" %}:&nbsp;</label>
+	<select name="resource" id="resource" class="span3 example">
+	{% for meter in meters %}
+		<option value="{{meter}}">
+			{{meter}}
+		</option>
+	{% endfor %}
+	</select>
+
+        <label for="date_from" style="display:inline">{% trans "From" %}:&nbsp;</label>
+        <input type="text" id="date_from" name="date_from" class="span3 example" />
+        <label for="date_to" style="display:inline">{% trans "To" %}:&nbsp;</label>
+        <input type="text" id="date_to" name="date_to" class="span3 example" />
+        <button type="button" id="action_display_chart" class="btn btn-small btn-search action_display_chart">{% trans "Refresh chart" %}</button></div>
+</div>
+<div id="chart_container"></div>
+
+<script type="text/javascript">
+	var color = undefined;
+	var parseDate = undefined;
+	var x = undefined;
+	var y = undefined;
+	var xAxis = undefined;
+	var yAxis = undefined;
+	var line = undefined;
+	var svg = undefined;
+
+	var margin = {top: 20, right: 100, bottom: 30, left: 200};
+    	var width = 960 - margin.left - margin.right;
+    	var height = 500 - margin.top - margin.bottom;
+
+
+    function loadChartData()
+    {
+	d3.select("svg").remove();
+
+	svg = d3.select("#chart_container").append("svg")
+		.attr("width", width + margin.left + margin.right)
+		.attr("height", height + margin.top + margin.bottom)
+		.append("g")
+		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+	// get sample, from and to
+	var sample = $("#resource").val();
+	var from = $("#date_from").val()
+	var to = $("#date_to").val();
+
+        horizon.ajax.queue({
+                url: "{% url horizon:admin:ceilometer:samples %}",
+                data: {"sample": sample, "from": from, "to": to},
+                success: function(data, textStatus, jqXHR) {
+			color.domain(data.resources);
+			var all_dates = new Array();
+
+			for(var resource_name in data.samples)
+			{
+				current_val = data.samples[resource_name];
+  				current_val.forEach(function(d) {
+    					d.date = parseDate.parse(d.t);
+					all_dates.push(d.date);
+  				});
+			}
+
+  			var resources = color.domain().map(function(name) {
+				for (var resource_name in data.samples)
+				{
+					if (resource_name == name)
+					{
+						item_data = new Array();
+						item_data["name"] = name;
+						item_data["values"] = new Array();
+
+						for (var index in data.samples[resource_name])
+						{
+							val = data.samples[resource_name][index];
+							row = {date: val.date, value: +(val.v)}
+							item_data["values"].push(row);
+						}
+						return item_data;
+						break;
+      					}
+    				}
+			});
+  			x.domain(d3.extent(all_dates, function(d) { return d; }));
+
+  			y.domain([
+    				d3.min(resources, function(c) { return d3.min(c.values, function(v) { return v.value; }); }),
+    				d3.max(resources, function(c) { return d3.max(c.values, function(v) { return v.value; }); })
+  			]);
+
+  			svg.append("g")
+      				.attr("class", "x axis")
+      				.attr("transform", "translate(0," + height + ")")
+      				.call(xAxis);
+			svg.append("g")
+      				.attr("class", "y axis")
+      				.call(yAxis)
+    				.append("text")
+      				.attr("transform", "rotate(-90)")
+      				.attr("y", 6)
+      				.attr("dy", ".71em")
+      				.style("text-anchor", "end")
+      				.text("Volume");
+
+  			var resource = svg.selectAll(".resource")
+      				.data(resources)
+    				.enter().append("g")
+      				.attr("class", "resource");
+
+  			resource.append("path")
+      				.attr("class", "line")
+      				.attr("d", function(d) { return line(d.values); })
+      				.style("stroke", function(d) { return color(d.name); });
+
+  			resource.append("text")
+      				.datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
+      				.attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.value) + ")"; })
+      				.attr("x", 3)
+      				.attr("dy", ".35em")
+      				.text(function(d) { return d.name; });
+		}
+        });
+
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+	$('<script/>', {type: 'text/javascript',
+        	src: '/static/ceilometer/js/bootstrap-datepicker.js'})
+                                                           .appendTo($('head'));
+	$('<script/>', {type: 'text/javascript',
+        	src: '/static/ceilometer/js/d3.v3.min.js'})
+                                                           .appendTo($('head'));
+
+
+        var from = $('#date_from').datepicker()
+        .on('changeDate', function(ev) {
+                if (ev.date.valueOf() > to.date.valueOf()) {
+                        var newDate = new Date(ev.date)
+                        newDate.setDate(newDate.getDate() + 1);
+                        to.setValue(newDate);
+                }
+                from.hide();
+                $('#date_to')[0].focus();
+        }).data('datepicker');
+
+        var to = $('#date_to').datepicker({
+                onRender: function(date) {
+                        return date.valueOf() <= from.date.valueOf() ? 'disabled' : '';
+                }
+        }).on('changeDate', function(ev) {
+          to.hide();
+        }).data('datepicker');
+
+        $(".action_display_chart").click(function()
+        {
+                var active_panel = $("#ceilometer_overview li.active a");
+                var target = active_panel.attr("data-target");
+                loadChartData();
+        });
+
+	// set initial dates, to=Today, from=30 days ago
+	var now = new Date();
+	to.setValue(now);
+	targetDate = new Date();
+	targetDate.setDate(now.getDate() - 30);
+	from.setValue(targetDate);
+
+	// setup chart load first chart
+	parseDate = d3.time.format.utc("%Y-%m-%dT%H:%M:%S");
+	x = d3.time.scale()
+		.range([0, width]);
+
+	y = d3.scale.linear()
+		.range([height, 0]);
+
+	color = d3.scale.category10();
+
+	xAxis = d3.svg.axis()
+		.scale(x)
+    		.orient("bottom");
+
+	yAxis = d3.svg.axis()
+		.scale(y)
+    		.orient("left");
+
+	line = d3.svg.line()
+		.interpolate("basis")
+		.x(function(d) { return x(d.date); })
+		.y(function(d) { return y(d.value); });
+
+
+	loadChartData();
+
+    });
+</script>
