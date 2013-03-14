@@ -27,12 +27,26 @@
 
 <div class="table_wrapper">
         <div class="table_actions clearfix" style="min-width:100%">
-        <label for="metric" style="display:inline">{% trans "Metric" %}:&nbsp;</label>
-	<select name="resource" id="resource" class="span3 example">
+        <label for="meter" style="display:inline">{% trans "Metric" %}:&nbsp;</label>
+	<select name="meter" id="meter" class="span3 example">
 	{% for meter in meters %}
 		<option value="{{meter}}">
 			{{meter}}
 		</option>
+	{% endfor %}
+	</select>
+        <label for="resource" style="display:inline">{% trans "Resource" %}:&nbsp;</label>
+	<select name="resource" id="resource" class="span3 example">
+	{% for project_id,project_val in resources.items %}
+		<optgroup label="{{project_id}}">
+		{% for user_id, user_val in project_val.items %}
+			<optgroup label="{{user_id}}">
+			{% for resource_id in user_val %}
+				<option value="{{resource_id}}">{{resource_id}}</option>
+			{% endfor %}
+			</optgroup>
+		{% endfor %}
+		</optgroup>
 	{% endfor %}
 	</select>
 
@@ -45,7 +59,6 @@
 <div id="chart_container"></div>
 
 <script type="text/javascript">
-	var color = undefined;
 	var parseDate = undefined;
 	var x = undefined;
 	var y = undefined;
@@ -69,59 +82,30 @@
 		.append("g")
 		.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-	// get sample, from and to
-	var sample = $("#resource").val();
+	// get sample, resource, from and to
+	var sample = $("#meter").val();
+	var resource = $("#resource").val();
 	var from = $("#date_from").val()
 	var to = $("#date_to").val();
 
-        horizon.ajax.queue({
-                url: "{% url horizon:admin:ceilometer:samples %}",
-                data: {"sample": sample, "from": from, "to": to},
-                success: function(data, textStatus, jqXHR) {
-			color.domain(data.resources);
-			var all_dates = new Array();
-
-			for(var resource_name in data.samples)
-			{
-				current_val = data.samples[resource_name];
-  				current_val.forEach(function(d) {
-    					d.date = parseDate.parse(d.t);
-					all_dates.push(d.date);
-  				});
-			}
-
-  			var resources = color.domain().map(function(name) {
-				for (var resource_name in data.samples)
-				{
-					if (resource_name == name)
-					{
-						item_data = new Array();
-						item_data["name"] = name;
-						item_data["values"] = new Array();
-
-						for (var index in data.samples[resource_name])
-						{
-							val = data.samples[resource_name][index];
-							row = {date: val.date, value: +(val.v)}
-							item_data["values"].push(row);
-						}
-						return item_data;
-						break;
-      					}
-    				}
+	var date_ts = (new Date()).getTime();
+        d3.csv("{%url horizon:admin:ceilometer:samples %}?ts="+date_ts+"&sample="+sample+"&resource="+resource+"&from="+from+"&to="+to,
+		function(error,data) {
+			data.forEach(function(d) {
+				console.log(d);
+				d.date = parseDate(d.date);
+				d.value = +d.value;
 			});
-  			x.domain(d3.extent(all_dates, function(d) { return d; }));
 
-  			y.domain([
-    				d3.min(resources, function(c) { return d3.min(c.values, function(v) { return v.value; }); }),
-    				d3.max(resources, function(c) { return d3.max(c.values, function(v) { return v.value; }); })
-  			]);
+			x.domain(d3.extent(data, function(d) { return d.date; }));
+			y.domain(d3.extent(data, function(d) { return d.value; }));
 
-  			svg.append("g")
+			svg.append("g")
       				.attr("class", "x axis")
       				.attr("transform", "translate(0," + height + ")")
       				.call(xAxis);
-			svg.append("g")
+
+  			svg.append("g")
       				.attr("class", "y axis")
       				.call(yAxis)
     				.append("text")
@@ -129,26 +113,14 @@
       				.attr("y", 6)
       				.attr("dy", ".71em")
       				.style("text-anchor", "end")
-      				.text("Volume");
+      				.text("{% trans "Value" %}");
 
-  			var resource = svg.selectAll(".resource")
-      				.data(resources)
-    				.enter().append("g")
-      				.attr("class", "resource");
-
-  			resource.append("path")
+  			svg.append("path")
+      				.datum(data)
       				.attr("class", "line")
-      				.attr("d", function(d) { return line(d.values); })
-      				.style("stroke", function(d) { return color(d.name); });
-
-  			resource.append("text")
-      				.datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
-      				.attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.value) + ")"; })
-      				.attr("x", 3)
-      				.attr("dy", ".35em")
-      				.text(function(d) { return d.name; });
+      				.attr("d", line);
 		}
-        });
+        );
 
     }
 
@@ -196,14 +168,12 @@
 	from.setValue(targetDate);
 
 	// setup chart load first chart
-	parseDate = d3.time.format.utc("%Y-%m-%dT%H:%M:%S");
+	parseDate = d3.time.format("%Y-%m-%dT%H:%M:%S").parse;
 	x = d3.time.scale()
 		.range([0, width]);
 
 	y = d3.scale.linear()
 		.range([height, 0]);
-
-	color = d3.scale.category10();
 
 	xAxis = d3.svg.axis()
 		.scale(x)
@@ -214,7 +184,6 @@
     		.orient("left");
 
 	line = d3.svg.line()
-		.interpolate("basis")
 		.x(function(d) { return x(d.date); })
 		.y(function(d) { return y(d.value); });
 

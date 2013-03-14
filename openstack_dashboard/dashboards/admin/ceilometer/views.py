@@ -15,8 +15,8 @@
 # under the License.
 
 import logging
-import simplejson
-from datetime import datetime
+import csv
+from datetime import datetime, timedelta
 
 from horizon import tabs, views
 from django.http import HttpResponse
@@ -41,48 +41,65 @@ class SamplesView(View):
         date_object = datetime.strptime(date_str, '%m/%d/%Y %H:%M:%S')
         return date_object.isoformat(' ')
 
+    # grab the latest sample value before that date
+    def _get_previous_val(self, source, resource, limit_date):
+        # give 1 hour of margin to grab latest sample
+        date_object = datetime.strptime(limit_date, '%Y-%m-%d %H:%M:%S')
+        edge_date = date_object - timedelta(hours=1)
+        edge_date_str = edge_date.strftime('%Y-%m-%d %H:%M:%S')
+
+        query = [
+            {'field':'timestamp', 'op':'ge', 'value':edge_date_str},
+            {'field':'timestamp', 'op':'lt', 'value':limit_date},
+            {'field':'resource', 'op':'eq', 'value':resource}
+        ]
+        sample_list = ceilometer.sample_list(self.request, source, query)
+        if len(sample_list)>0:
+            # grab latest item
+            last = sample_list[-1]
+            print last.timestamp
+            print last.counter_volume
+            return last.counter_volume
+        else:
+            return 0
+
     def get(self, request, *args, **kwargs):
-        if request.is_ajax():
-            source = request.GET.get('sample', '')
-            date_from = request.GET.get('from', '')
-            date_to = request.GET.get('to', '')
-            query = []
+        source = request.GET.get('sample', '')
+        date_from = request.GET.get('from', '')
+        date_to = request.GET.get('to', '')
+        resource = request.GET.get('resource', '')
+        query = []
+        rows = []
 
-            if date_from:
-                date_from = self._to_iso_time(date_from+" 00:00:00")
-                query.append({"field":"timestamp", "op":"ge", "value":date_from})
+        if date_from:
+            date_from = self._to_iso_time(date_from+' 00:00:00')
+            query.append({'field':'timestamp', 'op':'ge', 'value':date_from})
 
-            if date_to:
-                date_to = self._to_iso_time(date_to+" 23:59:59")
-                query.append({"field":"timestamp", "op":"le", "value":date_to})
+        if date_to:
+            date_to = self._to_iso_time(date_to+" 23:59:59")
+            query.append({'field':'timestamp', 'op':'le', 'value':date_to})
 
+        if source and resource:
+            query.append({'field':'resource', 'op':'eq', 'value':resource})
             sample_list = ceilometer.sample_list(self.request, source, query)
 
-            # send data to chart
-            samples = {}
-            resources = []
-            previous = {}
+            samples = []
+            previous = self._get_previous_val(source, resource, date_from)
 
             for sample_data in sample_list:
-                # it's cumulative, the real value is the current minus the previous
-                if sample_data.resource_id in previous:
-                    prev = previous[sample_data.resource_id]
-                else:
-                    prev = 0
-                    # add sample entry
-                    samples[sample_data.resource_id] = []
+                current_delta = sample_data.counter_volume - previous
+                previous = sample_data.counter_volume
+                if current_delta<0:
+                    current_delta = 0
+                samples.append([sample_data.timestamp, current_delta])
 
-                current_delta = sample_data.counter_volume - prev
-                previous[sample_data.resource_id] = sample_data.counter_volume 
+        # output csv
+        headers = ['date', 'value']
+        response = HttpResponse(mimetype='text/csv')
+        writer = csv.writer(response)
+        writer.writerow(headers)
 
-                sample_item = {'t': sample_data.timestamp, 'v': current_delta}
-                samples[sample_data.resource_id].append(sample_item)
+        for sample in samples:
+            writer.writerow(sample)
 
-                if sample_data.resource_id not in resources:
-                    resources.append(sample_data.resource_id)
-
-            json_string = simplejson.dumps({"resources":resources, "samples":samples}, ensure_ascii=False)
-            return HttpResponse(json_string, mimetype='text/json')
-        else:
-            return super(SamplesView, self).get_data(request, context, *args, **kwargs)
-
+        return response

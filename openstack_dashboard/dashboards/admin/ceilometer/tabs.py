@@ -13,6 +13,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+import operator
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -32,7 +33,7 @@ class DiskUsageTab(tabs.TableTab):
 
     def get_global_disk_usage_data(self):
         request = self.tab_group.request
-        result = api.ceilometer.global_disk_usage(request)
+        result = sorted(api.ceilometer.global_disk_usage(request), key=operator.itemgetter('tenant', 'user'))
         return result
 
 
@@ -44,7 +45,7 @@ class NetworkUsageTab(tabs.TableTab):
 
     def get_global_network_usage_data(self):
         request = self.tab_group.request
-        result = api.ceilometer.global_network_usage(request)
+        result = sorted(api.ceilometer.global_network_usage(request), key=operator.itemgetter('tenant', 'user'))
         return result
 
 class StatsTab(tabs.Tab):
@@ -55,6 +56,7 @@ class StatsTab(tabs.Tab):
     def get_context_data(self, request):
         context = {}
         meter_list = ceilometer.meter_list(self.request)
+        resource_list = ceilometer.resource_list(self.request)
 
         meters = []
         # we will allow charts of cumulative type
@@ -62,8 +64,19 @@ class StatsTab(tabs.Tab):
             if meter.type == "cumulative":
                 if meter.name not in meters:
                     meters.append(meter.name)
- 
-        context = {'meters': meters}
+
+        # list all resources, grouped by tenant/user
+        resources = {}
+        for resource in resource_list:
+            if resource.project_id not in resources:
+                resources[resource.project_id] = {}
+
+            if resource.user_id not in resources[resource.project_id]:
+                resources[resource.project_id][resource.user_id] = []
+
+            resources[resource.project_id][resource.user_id].append(resource.resource_id)
+
+        context = {'meters': meters, 'resources': resources}
         return context
 
 class CeilometerOverviewTabs(tabs.TabGroup):
