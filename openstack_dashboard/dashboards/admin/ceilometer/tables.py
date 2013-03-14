@@ -117,20 +117,20 @@ def get_write_bytes(sample):
 
 
 class  DiskUsageTable(tables.DataTable):
-    tenant = tables.Column("tenant", verbose_name=_("Tenant"))
-    user = tables.Column("user", verbose_name=_("User"))
-    instance = tables.Column("resource", verbose_name=_("Resource"))
+    tenant = tables.Column("tenant", verbose_name=_("Tenant"), sortable=True)
+    user = tables.Column("user", verbose_name=_("User"), sortable=True)
+    instance = tables.Column("resource", verbose_name=_("Resource"), sortable=True)
     disk_read_bytes = tables.Column(get_read_bytes,
-                            verbose_name=_("Disk Read Bytes"), summation="sum")
+                            verbose_name=_("Disk Read Bytes"), summation="sum", sortable=True)
     disk_read_requests = tables.Column("disk_read_requests",
                             verbose_name=_("Disk Read Requests"),
-                            summation="sum")
+                            summation="sum", sortable=True)
     disk_write_bytes = tables.Column(get_write_bytes,
                             verbose_name=_("Disk Write Bytes"),
-                            summation="sum")
+                            summation="sum", sortable=True)
     disk_write_requests = tables.Column("disk_write_requests",
                             verbose_name=_("Disk Write Requests"),
-                            summation="sum")
+                            summation="sum", sortable=True)
 
     def get_object_id(self, datum):
         return datum.tenant + datum.user + datum.resource
@@ -167,20 +167,20 @@ def get_outgoing_bytes(sample):
 
 class  NetworkUsageTable(tables.DataTable):
     tenant = tables.Column("tenant", verbose_name=_("Tenant"))
-    user = tables.Column("user", verbose_name=_("User"))
-    instance = tables.Column("resource", verbose_name=_("Resource"))
+    user = tables.Column("user", verbose_name=_("User"), sortable=True)
+    instance = tables.Column("resource", verbose_name=_("Resource"), sortable=True)
     network_incoming_bytes = tables.Column(get_incoming_bytes,
                             verbose_name=_("Network incoming Bytes"),
-                            summation="sum")
+                            summation="sum", sortable=True)
     network_incoming_packets = tables.Column("network_incoming_packets",
                             verbose_name=_("Network incoming Packets"),
-                            summation="sum")
+                            summation="sum", sortable=True)
     network_outgoing_bytes = tables.Column(get_outgoing_bytes,
                             verbose_name=_("Network Outgoing Bytes"),
-                            summation="sum")
+                            summation="sum", sortable=True)
     network_outgoing_packets = tables.Column("network_outgoing_packets",
                             verbose_name=_("Network Outgoing Packets"),
-                            summation="sum")
+                            summation="sum", sortable=True)
 
     def get_object_id(self, datum):
         return datum.tenant + datum.user + datum.resource
