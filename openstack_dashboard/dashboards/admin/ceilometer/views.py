@@ -21,13 +21,13 @@ from datetime import datetime, timedelta
 from horizon import tabs, views
 from django.http import HttpResponse
 from django.views.generic import View
-from django.utils.encoding import smart_str
 
 from .tabs import CeilometerOverviewTabs
 from openstack_dashboard.api import ceilometer
 
-from wkhtmltopdf import WKhtmlToPdf
-from tempfile import NamedTemporaryFile, mkstemp
+from svglib.svglib import SvgRenderer
+from reportlab.graphics import renderPDF
+import xml.dom.minidom
 
 LOG = logging.getLogger(__name__)
 
@@ -109,28 +109,17 @@ class ExportView(View):
     def post(self, request, *args, **kwargs):
         data = request.POST.get('svgdata', '')
 
-        # render to temporary file
-        tempfile = NamedTemporaryFile("w+b", bufsize=1, suffix='.svg', prefix='tmp', dir=None, delete=True)
-        try:
-            tempfile.write(smart_str(data))
-            tempfile.flush()
+        # render svg
+        doc = xml.dom.minidom.parseString(data.encode( "utf-8" ))
+        svg = doc.documentElement
+        svgRenderer = SvgRenderer()
+        svgRenderer.render(svg)
+        drawing = svgRenderer.finish()
 
-            # output to pdf
-            tempfile1 = mkstemp('.pdf')
-            if tempfile1:
-                options = {'header_html':'', 'footer_html':''}
-                wk = WKhtmlToPdf(tempfile.name, tempfile1[1], **options)
-                wk.render()
+        # output to pdf
+        pdf = renderPDF.drawToString(drawing)
+        response = HttpResponse(mimetype='application/pdf')
+        response["Content-Disposition"]= "attachment; filename=chart.pdf"
+        response.write(pdf) 
 
-                # read the file and output it
-                response = HttpResponse(mimetype='application/pdf')
-                f = open(tempfile1, 'r')
-                response.write(f.read())
-                f.close()
-
-                response["Content-Disposition"]= "attachment; filename=chart.pdf"
-                return response
-
-        except:
-            tempfile.close()
-            raise
+        return response

@@ -16,7 +16,6 @@ python-swiftclient>1.1,<2
 pytz
 svglib
 reportlab
-wkhtmltopdf
 
 # Horizon Utility Requirements
 lockfile # for SECURE_KEY generation

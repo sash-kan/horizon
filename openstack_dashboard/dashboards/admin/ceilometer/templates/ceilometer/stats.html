@@ -1,15 +1,10 @@
 {% load i18n %}
 <style>
-
 .axis path,
 .axis line {
   fill: none;
   stroke: #000;
   shape-rendering: crispEdges;
-}
-
-.x.axis path {
-  display: none;
 }
 
 .line {
@@ -156,7 +151,25 @@
   			svg.append("path")
       				.datum(data)
       				.attr("class", "line")
+				.style("stroke", "steelblue")
+				.style("stroke-width", 1.5)
+				.style("fill", "none")
       				.attr("d", line);
+
+			d3.selectAll("path.domain")
+				.style("fill", "none")
+				.style("stroke", "black")
+				.style("stroke-width", 1);
+
+			d3.selectAll(".axis path")
+				.style("fill", "none")
+				.style("stroke", "black")
+				.style("shape-rendering", "crispEdges");
+
+			d3.selectAll(".axis line")
+				.style("fill", "none")
+				.style("stroke", "black")
+				.style("shape-rendering", "crispEdges");
 		}
         );
 
