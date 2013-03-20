@@ -28,7 +28,8 @@ def load_test_data(load_onto=None):
                glance_data.data,
                nova_data.data,
                quantum_data.data,
-               swift_data.data)
+               swift_data.data,
+               ceilometer_data.data)
     if load_onto:
         for data_func in loaders:
             data_func(load_onto)

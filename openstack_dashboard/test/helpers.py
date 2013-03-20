@@ -35,6 +35,7 @@ from novaclient.v1_1 import client as nova_client
 from quantumclient.v2_0 import client as quantum_client
 from swiftclient import client as swift_client
 from cinderclient import client as cinder_client
+from ceilometerclient.v2 import client as ceilometer_client
 
 import httplib2
 import mox
@@ -246,6 +247,7 @@ class APITestCase(TestCase):
         self._original_novaclient = api.nova.novaclient
         self._original_quantumclient = api.quantum.quantumclient
         self._original_cinderclient = api.cinder.cinderclient
+        self._original_ceilometerclient = api.ceilometer.ceilometerclient
 
         # Replace the clients with our stubs.
         api.glance.glanceclient = lambda request: self.stub_glanceclient()
@@ -253,6 +255,8 @@ class APITestCase(TestCase):
         api.nova.novaclient = lambda request: self.stub_novaclient()
         api.quantum.quantumclient = lambda request: self.stub_quantumclient()
         api.cinder.cinderclient = lambda request: self.stub_cinderclient()
+        api.ceilometer.ceilometerclient = lambda request: \
+            self.stub_ceilometerclient()
 
     def tearDown(self):
         super(APITestCase, self).tearDown()
@@ -261,6 +265,7 @@ class APITestCase(TestCase):
         api.keystone.keystoneclient = self._original_keystoneclient
         api.quantum.quantumclient = self._original_quantumclient
         api.cinder.cinderclient = self._original_cinderclient
+        api.ceilometer.ceilometerclient = self._original_ceilometerclient
 
     def stub_novaclient(self):
         if not hasattr(self, "novaclient"):
@@ -309,6 +314,13 @@ class APITestCase(TestCase):
                             .AndReturn(self.swiftclient)
                 expected_calls -= 1
         return self.swiftclient
+
+    def stub_ceilometerclient(self):
+        if not hasattr(self, "ceilometerclient"):
+            self.mox.StubOutWithMock(ceilometer_client, 'Client')
+            self.ceilometerclient = self.mox.\
+                CreateMock(ceilometer_client.Client)
+        return self.ceilometerclient
 
 
 @unittest.skipUnless(os.environ.get('WITH_SELENIUM', False),
